@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/auth';
+import { getUserFromRequest } from '@/lib/session';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const user = await getUserFromRequest(request);
+    if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
+    const { id } = await context.params;
+
     const body = await request.json();
     const { completed } = body;
+
+    const existing = await prisma.todo.findUnique({ where: { id } });
+    if (!existing || (existing.userId !== user.id && user.role !== 'ADMIN')) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+    }
 
     const todo = await prisma.todo.update({
       where: { id },
@@ -29,10 +36,17 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const user = await getUserFromRequest(request);
+    if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
+    const { id } = await context.params;
+
+    const existing = await prisma.todo.findUnique({ where: { id } });
+    if (!existing || (existing.userId !== user.id && user.role !== 'ADMIN')) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+    }
 
     await prisma.todo.delete({
       where: { id },

@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/auth';
 import { getUserFromRequest } from '@/lib/session';
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
+  const { id } = await context.params;
 
-  const instance = await prisma.checklistInstance.findUnique({ where: { id: params.id }, include: { template: true } });
+  const instance = await prisma.checklistInstance.findUnique({ where: { id }, include: { template: true } });
   if (!instance) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
   // only assignee or admin can submit

@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/auth';
 import { getUserFromRequest } from '@/lib/session';
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
+  const { id } = await context.params;
   if (user.role !== 'ADMIN') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const body = await req.json();
@@ -15,6 +16,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (userId) data.assignedToUserId = userId;
   if (groupId) data.routedToGroupId = groupId;
 
-  const updated = await prisma.checklistInstance.update({ where: { id: params.id }, data });
+  const updated = await prisma.checklistInstance.update({ where: { id }, data });
   return NextResponse.json({ instance: updated });
 }

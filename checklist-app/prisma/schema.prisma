@@ -32,6 +32,7 @@ model User {
   auditLogs         AuditLog[]
   notifications     Notification[]
   comments          ChecklistComment[]
+  todos             Todo[]
 }
 
 model Group {
@@ -163,6 +164,16 @@ model ChecklistComment {
   author     User     @relation(fields: [authorId], references: [id])
   text       String
   createdAt  DateTime @default(now())
+}
+
+model Todo {
+  id        String   @id @default(cuid())
+  title     String
+  completed Boolean  @default(false)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // End of schema

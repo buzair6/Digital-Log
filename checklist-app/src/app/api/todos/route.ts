@@ -1,22 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/auth';
+import { getUserFromRequest } from '@/lib/session';
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
+    const user = await getUserFromRequest(request);
+    if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
 
     const todos = await prisma.todo.findMany({
-      where: { userId },
+      where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -32,12 +24,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getUserFromRequest(request);
+    if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
+
     const body = await request.json();
     const { title, userId } = body;
 
-    if (!title || !userId) {
+    if (!title) {
       return NextResponse.json(
-        { error: 'Title and userId are required' },
+        { error: 'Title is required' },
         { status: 400 }
       );
     }
@@ -45,7 +40,7 @@ export async function POST(request: NextRequest) {
     const todo = await prisma.todo.create({
       data: {
         title,
-        userId,
+        userId: user.id,
       },
     });
 

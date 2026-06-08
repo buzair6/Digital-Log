@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '../../../../../src/lib/prisma'
-import { getUserFromRequest } from '../../../../../src/lib/session'
+import { prisma } from '@/lib/auth'
+import { getUserFromRequest } from '@/lib/session'
 
 async function collectSubtree(templateId: string, rootNodeId: string) {
   // BFS collect nodes in subtree
@@ -20,11 +20,11 @@ async function collectSubtree(templateId: string, rootNodeId: string) {
   return nodes
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string; nodeId: string } }) {
+export async function POST(req: NextRequest, context: { params: Promise<{ id: string; nodeId: string }> }) {
   const user = await getUserFromRequest(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { id: templateId, nodeId } = params
+  const { id: templateId, nodeId } = await context.params
 
   // Fetch the root node
   const root = await prisma.checklistNode.findUnique({ where: { id: nodeId } })
@@ -97,5 +97,3 @@ export async function POST(req: NextRequest, { params }: { params: { id: string;
 
   return NextResponse.json({ duplicatedNodeId: idMap[root.id] })
 }
-
-export const runtime = 'edge'

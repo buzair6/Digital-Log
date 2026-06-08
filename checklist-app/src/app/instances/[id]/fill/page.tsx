@@ -47,7 +47,7 @@ export default function FillChecklistPage() {
     } finally { setSubmitting(false); }
   }
 
-  function renderNode(node: any, level: number = 0): JSX.Element {
+  function renderNode(node: any, level: number = 0): React.ReactElement {
     const isQuestion = node.nodeType === 'QUESTION';
     const value = responses[node.nodeId] || '';
     const children = (node.children || []).map((c: any) => renderNode(c, level + 1));

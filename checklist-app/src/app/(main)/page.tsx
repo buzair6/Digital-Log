@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
 export default function Home() {
   const router = useRouter();
@@ -11,7 +10,7 @@ export default function Home() {
     const user = localStorage.getItem('user');
     if (user) {
       const userData = JSON.parse(user);
-      if (userData.role === 'admin') {
+      if ((userData.role || '').toString().toUpperCase() === 'ADMIN') {
         router.push('/admin/dashboard');
       } else {
         router.push('/dashboard');

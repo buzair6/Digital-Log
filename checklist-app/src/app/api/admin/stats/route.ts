@@ -1,25 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/auth';
+import { getUserFromRequest } from '@/lib/session';
 
 export async function GET(request: NextRequest) {
   try {
-    const users = await prisma.user.findMany();
-    const todos = await prisma.todo.findMany({
-      include: { user: true },
-    });
+    const user = await getUserFromRequest(request);
+    if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
+    if (user.role !== 'ADMIN') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+
+    const [totalUsers, totalTemplates, totalInstances] = await Promise.all([
+      prisma.user.count(),
+      prisma.checklistTemplate.count({ where: { isActive: true } }),
+      prisma.checklistInstance.count(),
+    ]);
 
     const stats = {
-      totalUsers: users.length,
-      totalTodos: todos.length,
-      completedTodos: todos.filter(t => t.completed).length,
+      totalUsers,
+      totalTemplates,
+      totalInstances,
     };
 
-    return NextResponse.json({
-      stats,
-      todos,
-    });
+    return NextResponse.json({ stats });
   } catch (error) {
     console.error('Error fetching admin stats:', error);
     return NextResponse.json(

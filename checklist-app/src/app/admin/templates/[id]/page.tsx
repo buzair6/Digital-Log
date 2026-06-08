@@ -9,7 +9,6 @@ export default function TemplateDetail({ params }: { params: { id: string } }) {
       <Sidebar />
       <main className="p-6 flex-1">
         <h1 className="text-2xl font-semibold mb-4">Template Builder</h1>
-        {/* @ts-expect-error client component */}
         <TemplateBuilder templateId={id} />
       </main>
     </div>

@@ -10,7 +10,6 @@ export default async function AdminDashboard() {
       <Sidebar />
       <main className="p-6 flex-1">
         <h1 className="text-2xl font-semibold mb-4">Admin Dashboard</h1>
-        {/* @ts-expect-error Server component includes client component */}
         <DashboardStats role="ADMIN" />
       </main>
     </div>

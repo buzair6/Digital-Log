@@ -1,21 +1,3 @@
-import React from 'react';
-import Sidebar from '@/components/Sidebar';
-import DashboardStats from '@/components/DashboardStats';
-
-export const metadata = { title: 'My Checklists' };
-
-export default async function UserDashboard() {
-  return (
-    <div className="flex">
-      <Sidebar />
-      <main className="p-6 flex-1">
-        <h1 className="text-2xl font-semibold mb-4">My Checklists</h1>
-        {/* @ts-expect-error Server component includes client component */}
-        <DashboardStats role="USER" />
-      </main>
-    </div>
-  );
-}
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -31,7 +13,8 @@ interface Todo {
 interface User {
   id: string;
   email: string;
-  name: string;
+  fullName?: string;
+  name?: string;
   role: string;
 }
 
@@ -50,13 +33,13 @@ export default function Dashboard() {
     }
 
     const userData = JSON.parse(storedUser);
-    if (userData.role === 'admin') {
+    if ((userData.role || '').toString().toUpperCase() === 'ADMIN') {
       router.push('/admin/dashboard');
       return;
     }
 
     setUser(userData);
-    fetchTodos(userData.id);
+    void fetchTodos(userData.id);
   }, [router]);
 
   const fetchTodos = async (userId: string) => {
@@ -148,7 +131,7 @@ export default function Dashboard() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">My Checklist</h1>
-              <p className="text-gray-600 mt-1">Hello, {user?.name}!</p>
+              <p className="text-gray-600 mt-1">Hello, {user?.fullName || user?.name || user?.email}!</p>
             </div>
             <button
               onClick={handleLogout}

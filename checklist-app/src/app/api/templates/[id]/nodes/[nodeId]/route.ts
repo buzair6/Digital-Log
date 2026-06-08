@@ -11,10 +11,11 @@ async function collectDescendants(templateId: string, nodeId: string) {
   return ids;
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string; nodeId: string } }) {
+export async function PUT(req: Request, context: { params: Promise<{ id: string; nodeId: string }> }) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
   if (user.role !== 'ADMIN') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  const { nodeId } = await context.params;
 
   const body = await req.json();
   const { parentNodeId, orderIndex, title, nodeType, inputType, options, isRequired, helpText } = body;
@@ -26,16 +27,17 @@ export async function PUT(req: Request, { params }: { params: { id: string; node
     data.depthLevel = (parent?.depthLevel ?? 0) + 1;
   }
 
-  const updated = await prisma.checklistNode.update({ where: { id: params.nodeId }, data });
+  const updated = await prisma.checklistNode.update({ where: { id: nodeId }, data });
   return NextResponse.json({ node: updated });
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string; nodeId: string } }) {
+export async function DELETE(req: Request, context: { params: Promise<{ id: string; nodeId: string }> }) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
   if (user.role !== 'ADMIN') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  const { id, nodeId } = await context.params;
 
-  const ids = await collectDescendants(params.id, params.nodeId);
+  const ids = await collectDescendants(id, nodeId);
   await prisma.checklistNode.deleteMany({ where: { id: { in: ids } } });
   return NextResponse.json({ deleted: ids.length });
 }

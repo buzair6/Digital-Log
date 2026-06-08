@@ -14,9 +14,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'user already exists' }, { status: 409 });
   }
 
-  const user = await createUser(email, password, fullName, role || 'USER');
+  const normalizedRole = String(role ?? 'USER').toUpperCase() === 'ADMIN' ? 'ADMIN' : 'USER';
+  const user = await createUser(email, password, fullName, normalizedRole);
+  const token = Buffer.from(user.id).toString('base64');
 
   // Do not return sensitive fields
   const safe = { id: user.id, email: user.email, fullName: user.fullName, role: user.role };
-  return NextResponse.json({ user: safe }, { status: 201 });
+  return NextResponse.json({ user: safe, token }, { status: 201 });
 }

@@ -19,7 +19,7 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth', {
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -27,9 +27,8 @@ export default function Signup() {
         body: JSON.stringify({
           email,
           password,
-          name,
+          fullName: name,
           role,
-          isSignup: true,
         }),
       });
 
@@ -42,9 +41,14 @@ export default function Signup() {
 
       // Store user in localStorage
       localStorage.setItem('user', JSON.stringify(data.user));
+
+      if (data.token) {
+        const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
+        document.cookie = `dev_token=${data.token}; path=/; expires=${expires}; SameSite=Lax`;
+      }
       
       // Redirect based on role
-      if (data.user.role === 'admin') {
+      if ((data.user.role || '').toString().toUpperCase() === 'ADMIN') {
         router.push('/admin/dashboard');
       } else {
         router.push('/dashboard');
