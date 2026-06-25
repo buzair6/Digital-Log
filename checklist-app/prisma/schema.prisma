@@ -33,6 +33,8 @@ model User {
   notifications     Notification[]
   comments          ChecklistComment[]
   todos             Todo[]
+  addedGroupMembers GroupMember[] @relation("GroupMemberAddedBy")
+  initiatedRoutes   ChecklistRoute[] @relation("RouteInitiatedBy")
 }
 
 model Group {
@@ -44,12 +46,15 @@ model Group {
   createdBy   User?    @relation("GroupCreatedBy", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
 
-  // members: optional one-to-many relation via User.groupId
+  // members: user-based membership via User.groupId
   members     User[]
+  // members: email-based membership for external users (Flask plan style)
+  emailMembers GroupMember[]
 
   // default routing for templates
   templates   ChecklistTemplate[] @relation("templateRoutingGroup")
   routedInstances ChecklistInstance[] @relation("instanceRoutedTo")
+  routedHistory ChecklistRoute[]
 }
 
 model ChecklistTemplate {
@@ -114,6 +119,7 @@ model ChecklistInstance {
 
   responses            ChecklistResponse[]
   comments             ChecklistComment[]
+  routes               ChecklistRoute[]
 
   @@index([status])
 }
@@ -132,6 +138,19 @@ model ChecklistResponse {
   isComplete     Boolean   @default(false)
 }
 
+model GroupMember {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  email     String
+  name      String?
+  addedById String?
+  addedBy   User?    @relation("GroupMemberAddedBy", fields: [addedById], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([groupId, email])
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   userId     String?
@@ -142,6 +161,22 @@ model AuditLog {
   details    String?
   ipAddress  String?
   createdAt  DateTime @default(now())
+}
+
+model ChecklistRoute {
+  id          String   @id @default(cuid())
+  instanceId  String
+  instance    ChecklistInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id])
+  groupName   String?  // snapshot of group name at time of routing
+  emailCount  Int      @default(0) // how many emails were sent
+  signedToken String?  // signed URL token for verification
+  status      String   @default("PENDING") // PENDING | COMPLETED | ACCEPTED
+  routedById  String?
+  routedBy    User?    @relation("RouteInitiatedBy", fields: [routedById], references: [id])
+  routedAt    DateTime @default(now())
+  completedAt DateTime?
 }
 
 model Notification {

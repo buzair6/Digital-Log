@@ -6,8 +6,12 @@ export async function GET(req: Request) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
 
-  // Admins and Supervisors can list groups; operators can too for their own group
-  const groups = await prisma.group.findMany({ include: { members: true } });
+  const groups = await prisma.group.findMany({
+    include: {
+      members: { select: { id: true, email: true, fullName: true } },
+      emailMembers: true,
+    },
+  });
   return NextResponse.json({ groups });
 }
 
@@ -20,6 +24,9 @@ export async function POST(req: Request) {
   const { name, description, type } = body;
   if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 });
 
-  const group = await prisma.group.create({ data: { name, description, type: type || 'CUSTOM', createdById: user.id } });
+  const group = await prisma.group.create({
+    data: { name, description: description || null, type: type || 'CUSTOM', createdById: user.id },
+    include: { members: true, emailMembers: true },
+  });
   return NextResponse.json({ group }, { status: 201 });
 }

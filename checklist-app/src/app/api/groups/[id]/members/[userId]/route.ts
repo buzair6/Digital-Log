@@ -6,13 +6,20 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
   if (user.role !== 'ADMIN') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  const { id, userId } = await context.params;
+  const { id: groupId, userId: memberId } = await context.params;
 
-  // only remove if the user is currently in this group
-  const target = await prisma.user.findUnique({ where: { id: userId } });
+  // Check if this is an email-based member (GroupMember model)
+  const emailMember = await prisma.groupMember.findUnique({ where: { id: memberId } });
+  if (emailMember && emailMember.groupId === groupId) {
+    await prisma.groupMember.delete({ where: { id: memberId } });
+    return NextResponse.json({ message: 'email member removed' });
+  }
+
+  // Otherwise, treat as a user-based member
+  const target = await prisma.user.findUnique({ where: { id: memberId } });
   if (!target) return NextResponse.json({ error: 'user not found' }, { status: 404 });
-  if (target.groupId !== id) return NextResponse.json({ error: 'user not in group' }, { status: 400 });
+  if (target.groupId !== groupId) return NextResponse.json({ error: 'user not in group' }, { status: 400 });
 
-  const updated = await prisma.user.update({ where: { id: userId }, data: { groupId: null } });
+  const updated = await prisma.user.update({ where: { id: memberId }, data: { groupId: null } });
   return NextResponse.json({ user: { id: updated.id, email: updated.email, groupId: updated.groupId } });
 }
