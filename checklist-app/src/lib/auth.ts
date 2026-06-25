@@ -28,8 +28,18 @@ export async function createUser(
 }
 
 export async function validateUserCredentials(email: string, password: string) {
-  const user = await getUserByEmail(email);
-  if (!user || !user.isActive) return null;
-  const ok = await verifyPassword(password, user.passwordHash);
-  return ok ? user : null;
+  try {
+    const user = await getUserByEmail(email);
+    if (!user || !user.isActive) {
+      console.log('[AUTH] validate failed: user not found or inactive', { email });
+      return null;
+    }
+    console.log('[AUTH] found user', { email, hasPassword: !!user.passwordHash });
+    const ok = await verifyPassword(password, user.passwordHash);
+    console.log('[AUTH] password verify', { email, ok });
+    return ok ? user : null;
+  } catch (error) {
+    console.error('[AUTH] validate error', error);
+    return null;
+  }
 }
