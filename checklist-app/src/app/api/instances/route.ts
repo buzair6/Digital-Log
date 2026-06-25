@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/session';
 
 export async function GET(req: Request) {
@@ -11,19 +11,27 @@ export async function GET(req: Request) {
   const assignee = url.searchParams.get('assignee');
   const template = url.searchParams.get('template');
   const group = url.searchParams.get('group');
+  const mine = url.searchParams.get('mine') === '1';
 
-  const where: any = {};
+  const where: Record<string, unknown> = {};
   if (status) where.status = status;
   if (assignee) where.assignedToUserId = assignee;
   if (template) where.templateId = template;
   if (group) where.routedToGroupId = group;
 
-  // Non-admins see only instances assigned to them or routed to their group
-  if (user.role !== 'ADMIN') {
-    where.OR = [{ assignedToUserId: user.id }, { routedToGroupId: user.groupId }];
+  if (user.role !== 'ADMIN' || mine) {
+    where.OR = [
+      { assignedToUserId: user.id },
+      { routedToGroupId: user.groupId },
+      { createdById: user.id },
+    ];
   }
 
-  const instances = await prisma.checklistInstance.findMany({ where, include: { template: { select: { name: true } } }, orderBy: { createdAt: 'desc' } });
+  const instances = await prisma.checklistInstance.findMany({
+    where,
+    include: { template: { select: { name: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
   return NextResponse.json({ instances });
 }
 
@@ -35,6 +43,15 @@ export async function POST(req: Request) {
   const { templateId, assignedToUserId, routedToGroupId } = body;
   if (!templateId) return NextResponse.json({ error: 'templateId required' }, { status: 400 });
 
-  const inst = await prisma.checklistInstance.create({ data: { templateId, assignedToUserId: assignedToUserId ?? null, routedToGroupId: routedToGroupId ?? null, createdById: user.id, startedAt: new Date(), status: 'IN_PROGRESS' } });
+  const inst = await prisma.checklistInstance.create({
+    data: {
+      templateId,
+      assignedToUserId: assignedToUserId ?? null,
+      routedToGroupId: routedToGroupId ?? null,
+      createdById: user.id,
+      startedAt: new Date(),
+      status: 'IN_PROGRESS',
+    },
+  });
   return NextResponse.json({ instance: inst }, { status: 201 });
 }
