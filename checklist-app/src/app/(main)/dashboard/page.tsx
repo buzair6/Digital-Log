@@ -1,213 +1,120 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trash2, Plus, Check } from 'lucide-react';
+import { ClipboardList, Loader2, LogOut, CheckCircle2, ArrowRight } from 'lucide-react';
 
-interface Todo {
+type Instance = {
   id: string;
-  title: string;
-  completed: boolean;
-}
-
-interface User {
-  id: string;
-  email: string;
-  fullName?: string;
-  name?: string;
-  role: string;
-}
+  status: string;
+  template: { name: string };
+  createdAt: string;
+};
 
 export default function Dashboard() {
-  const [user, setUser] = useState<User | null>(null);
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [newTodo, setNewTodo] = useState('');
+  const [instances, setInstances] = useState<Instance[] | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (!storedUser) {
-      router.push('/login');
-      return;
-    }
-
-    const userData = JSON.parse(storedUser);
-    if ((userData.role || '').toString().toUpperCase() === 'ADMIN') {
-      router.push('/admin/dashboard');
-      return;
-    }
-
-    setUser(userData);
-    void fetchTodos(userData.id);
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d?.user) return router.replace('/login');
+        if ((d.user.role || '').toUpperCase() === 'ADMIN') return router.replace('/admin/dashboard');
+        loadInstances();
+      });
   }, [router]);
 
-  const fetchTodos = async (userId: string) => {
+  async function loadInstances() {
     try {
-      const response = await fetch(`/api/todos?userId=${userId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setTodos(data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch todos:', err);
+      const res = await fetch('/api/instances?mine=1', { credentials: 'include' });
+      const data = await res.json();
+      setInstances(data.instances || []);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const addTodo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTodo.trim() || !user) return;
-
-    try {
-      const response = await fetch('/api/todos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: newTodo,
-          userId: user.id,
-        }),
-      });
-
-      if (response.ok) {
-        const todo = await response.json();
-        setTodos([...todos, todo]);
-        setNewTodo('');
-      }
-    } catch (err) {
-      console.error('Failed to add todo:', err);
-    }
-  };
-
-  const toggleTodo = async (id: string, completed: boolean) => {
-    try {
-      const response = await fetch(`/api/todos/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ completed: !completed }),
-      });
-
-      if (response.ok) {
-        setTodos(todos.map(t => (t.id === id ? { ...t, completed: !completed } : t)));
-      }
-    } catch (err) {
-      console.error('Failed to update todo:', err);
-    }
-  };
-
-  const deleteTodo = async (id: string) => {
-    try {
-      const response = await fetch(`/api/todos/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        setTodos(todos.filter(t => t.id !== id));
-      }
-    } catch (err) {
-      console.error('Failed to delete todo:', err);
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    router.push('/login');
-  };
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    router.replace('/login');
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-gray-600">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center text-gray-500">
+        <Loader2 className="w-6 h-6 animate-spin" />
       </div>
     );
   }
 
+  const active = instances?.filter((i) => i.status !== 'COMPLETED' && i.status !== 'APPROVED') ?? [];
+  const done = instances?.filter((i) => i.status === 'COMPLETED' || i.status === 'APPROVED') ?? [];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">My Checklist</h1>
-              <p className="text-gray-600 mt-1">Hello, {user?.fullName || user?.name || user?.email}!</p>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
-            >
-              Logout
-            </button>
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-white border-b">
+        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ClipboardList className="w-6 h-6 text-indigo-600" />
+            <span className="font-semibold text-gray-900">My Checklists</span>
           </div>
+          <button onClick={logout} className="text-sm text-gray-600 hover:text-red-600 flex items-center gap-1">
+            <LogOut className="w-4 h-4" /> Logout
+          </button>
         </div>
+      </header>
 
-        {/* Add Todo Form */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <form onSubmit={addTodo} className="flex gap-2">
-            <input
-              type="text"
-              value={newTodo}
-              onChange={(e) => setNewTodo(e.target.value)}
-              placeholder="Add a new checklist item..."
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <button
-              type="submit"
-              className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2"
-            >
-              <Plus size={20} />
-              Add
-            </button>
-          </form>
-        </div>
-
-        {/* Todos List */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          {todos.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              <p>No checklist items yet. Add one to get started!</p>
+      <main className="max-w-3xl mx-auto px-6 py-8 space-y-8">
+        <section>
+          <h2 className="text-sm uppercase tracking-wide text-gray-500 mb-3">Active</h2>
+          {active.length === 0 ? (
+            <div className="bg-white border rounded-xl p-8 text-center text-gray-400">
+              No active checklists assigned to you.
             </div>
           ) : (
-            <ul className="divide-y">
-              {todos.map((todo) => (
-                <li
-                  key={todo.id}
-                  className="p-4 hover:bg-gray-50 flex items-center justify-between transition"
+            <div className="space-y-2">
+              {active.map((i) => (
+                <a
+                  key={i.id}
+                  href={`/instances/${i.id}/fill`}
+                  className="bg-white border rounded-xl p-4 flex items-center justify-between hover:border-indigo-400 hover:shadow-sm transition"
                 >
-                  <div className="flex items-center gap-3 flex-1">
-                    <button
-                      onClick={() => toggleTodo(todo.id, todo.completed)}
-                      className={`flex-shrink-0 w-6 h-6 rounded border-2 flex items-center justify-center transition ${
-                        todo.completed
-                          ? 'bg-green-500 border-green-500'
-                          : 'border-gray-300 hover:border-green-500'
-                      }`}
-                    >
-                      {todo.completed && <Check size={16} className="text-white" />}
-                    </button>
-                    <span
-                      className={`flex-1 ${
-                        todo.completed
-                          ? 'line-through text-gray-400'
-                          : 'text-gray-900'
-                      }`}
-                    >
-                      {todo.title}
-                    </span>
+                  <div>
+                    <div className="font-medium text-gray-900">{i.template.name}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {i.status} · {new Date(i.createdAt).toLocaleDateString()}
+                    </div>
                   </div>
-                  <button
-                    onClick={() => deleteTodo(todo.id)}
-                    className="text-red-600 hover:text-red-700 transition"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </li>
+                  <ArrowRight className="w-5 h-5 text-gray-400" />
+                </a>
               ))}
-            </ul>
+            </div>
           )}
-        </div>
-      </div>
+        </section>
+
+        <section>
+          <h2 className="text-sm uppercase tracking-wide text-gray-500 mb-3">Completed</h2>
+          {done.length === 0 ? (
+            <div className="bg-white border rounded-xl p-8 text-center text-gray-400">
+              Nothing completed yet.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {done.map((i) => (
+                <div key={i.id} className="bg-white border rounded-xl p-4 flex items-center gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">{i.template.name}</div>
+                    <div className="text-xs text-gray-500">{i.status}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </main>
     </div>
   );
 }

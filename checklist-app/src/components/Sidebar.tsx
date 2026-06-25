@@ -1,73 +1,91 @@
-"use client";
-import React, { useEffect, useState } from 'react';
+'use client';
+import { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { ClipboardList, LayoutDashboard, FileText, Users, Group, ScrollText, LogOut } from 'lucide-react';
+
+type Me = { id: string; email: string; fullName?: string | null; role: string };
 
 export default function Sidebar() {
-  const [role, setRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [me, setMe] = useState<Me | null>(null);
+  const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
-    let cancelled = false;
     fetch('/api/auth/me', { credentials: 'include' })
       .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        setRole(data?.user?.role ?? null);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-    return () => { cancelled = true; };
+      .then((d) => setMe(d?.user ?? null))
+      .catch(() => setMe(null));
   }, []);
 
-  const topLinks = [
-    { href: '/', label: 'Home' },
-  ];
-  
+  const isAdmin = (me?.role || '').toUpperCase() === 'ADMIN';
+
   const adminLinks = [
-    { href: '/admin/dashboard', label: 'Admin Dashboard' },
-    { href: '/admin/templates', label: 'Templates' },
-    { href: '/admin/users', label: 'Users' },
-    { href: '/admin/groups', label: 'Groups' },
-    { href: '/admin/audit', label: 'Audit Log' },
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/templates', label: 'Templates', icon: FileText },
+    { href: '/admin/users', label: 'Users', icon: Users },
+    { href: '/admin/groups', label: 'Groups', icon: Group },
+    { href: '/admin/audit', label: 'Audit Log', icon: ScrollText },
   ];
-
   const userLinks = [
-    { href: '/dashboard', label: 'My Checklists' },
+    { href: '/dashboard', label: 'My Checklists', icon: ClipboardList },
   ];
 
-  const supervisorLinks = [
-    { href: '/supervisor/dashboard', label: 'Supervisor Dashboard' },
-  ];
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    router.replace('/login');
+  }
+
+  function isActive(href: string) {
+    return pathname === href || pathname?.startsWith(href + '/');
+  }
 
   return (
-    <aside className="w-64 min-h-screen bg-gray-50 border-r p-4 flex flex-col gap-6">
-      <div className="mb-2 font-bold text-lg">Checklist App</div>
-      {loading ? (
-        <div className="text-sm text-gray-500">Loading...</div>
-      ) : (
-        <nav className="flex flex-col gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-wider text-gray-400 mb-1">General</div>
-            <div className="flex flex-col gap-1">
-              {topLinks.map((l) => (
-                <a key={l.href} href={l.href} className="text-sm text-gray-700 hover:text-black hover:bg-gray-100 px-2 py-1 rounded">{l.label}</a>
-              ))}
-              {userLinks.map((l) => (
-                <a key={l.href} href={l.href} className="text-sm text-gray-700 hover:text-black hover:bg-gray-100 px-2 py-1 rounded">{l.label}</a>
-              ))}
-            </div>
-          </div>
-          {(role === 'ADMIN' || role === 'SUPERVISOR') && (
-            <div>
-              <div className="text-xs uppercase tracking-wider text-gray-400 mb-1">Management</div>
-              <div className="flex flex-col gap-1">
-                {(role === 'ADMIN' ? adminLinks : supervisorLinks).map((l) => (
-                  <a key={l.href} href={l.href} className="text-sm text-gray-700 hover:text-black hover:bg-gray-100 px-2 py-1 rounded">{l.label}</a>
-                ))}
-              </div>
-            </div>
-          )}
-        </nav>
-      )}
+    <aside className="w-64 min-h-screen bg-slate-900 text-slate-300 flex flex-col">
+      <div className="px-5 py-5 border-b border-slate-800 flex items-center gap-2">
+        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+          <ClipboardList className="w-5 h-5 text-white" />
+        </div>
+        <span className="font-semibold text-white">Digital Log</span>
+      </div>
+
+      <nav className="flex-1 px-3 py-4 space-y-1">
+        {userLinks.map((l) => (
+          <NavLink key={l.href} {...l} active={isActive(l.href)} />
+        ))}
+        {isAdmin && (
+          <>
+            <div className="px-3 pt-4 pb-1 text-xs uppercase tracking-wider text-slate-500">Management</div>
+            {adminLinks.map((l) => (
+              <NavLink key={l.href} {...l} active={isActive(l.href)} />
+            ))}
+          </>
+        )}
+      </nav>
+
+      <div className="px-3 py-4 border-t border-slate-800">
+        <div className="px-2 pb-3">
+          <div className="text-sm text-white truncate">{me?.fullName || me?.email || '—'}</div>
+          <div className="text-xs text-slate-500">{me?.role}</div>
+        </div>
+        <button onClick={logout} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white">
+          <LogOut className="w-4 h-4" /> Logout
+        </button>
+      </div>
     </aside>
+  );
+}
+
+function NavLink({
+  href, label, icon: Icon, active,
+}: { href: string; label: string; icon: any; active: boolean }) {
+  return (
+    <a
+      href={href}
+      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${
+        active ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+      }`}
+    >
+      <Icon className="w-4 h-4" /> {label}
+    </a>
   );
 }

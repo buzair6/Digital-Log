@@ -1,31 +1,21 @@
 'use client';
-
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function Home() {
   const router = useRouter();
-
   useEffect(() => {
-    const user = localStorage.getItem('user');
-    if (user) {
-      const userData = JSON.parse(user);
-      if ((userData.role || '').toString().toUpperCase() === 'ADMIN') {
-        router.push('/admin/dashboard');
-      } else {
-        router.push('/dashboard');
-      }
-    } else {
-      router.push('/login');
-    }
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => {
+        const role = (d?.user?.role || '').toUpperCase();
+        if (role === 'ADMIN') router.replace('/admin/dashboard');
+        else if (d?.user) router.replace('/dashboard');
+        else router.replace('/login');
+      })
+      .catch(() => router.replace('/login'));
   }, [router]);
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">Redirecting...</h1>
-        <p className="text-gray-600">Please wait while we redirect you.</p>
-      </div>
-    </div>
+    <div className="min-h-screen flex items-center justify-center text-gray-500">Loading…</div>
   );
 }
