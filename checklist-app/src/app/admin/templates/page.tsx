@@ -14,7 +14,7 @@ export default function TemplatesPage() {
   const [toast, setToast] = useState<string | null>(null);
 
   async function load() {
-    const res = await fetch('/api/templates', { credentials: 'include' });
+    const res = await fetch('/api/templates?all=1', { credentials: 'include' });
     const data = await res.json();
     setTemplates(data.templates || []);
   }

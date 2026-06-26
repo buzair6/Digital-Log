@@ -61,7 +61,33 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
 
   if (!routedGroupId) routedGroupId = instance.template.defaultRoutingGroupId ?? null;
 
-  const updated = await prisma.checklistInstance.update({ where: { id: instance.id }, data: { status: 'SUBMITTED', submittedAt: new Date(), routedToGroupId: routedGroupId } });
+  // === Scoring ===
+  const scorableNodes = await prisma.checklistNode.findMany({
+    where: { templateId: instance.templateId, nodeType: 'QUESTION' },
+  });
+  const allResp = await prisma.checklistResponse.findMany({ where: { instanceId: instance.id } });
+  const respByNode: Record<string, string | null> = {};
+  for (const r of allResp) respByNode[r.nodeId] = r.value;
+
+  let score = 0, maxScore = 0, flagged = 0;
+  for (const n of scorableNodes) {
+    const weight = (n as any).weight ?? 1;
+    let map: Record<string, number> | null = null;
+    try { map = (n as any).scoreMap ? JSON.parse((n as any).scoreMap) : null; } catch {}
+    if (!map && n.inputType === 'yes_no') map = { yes: 1, no: 0 };
+    if (!map) continue;
+    maxScore += weight;
+    const val = (respByNode[n.id] ?? '').toString();
+    const got = (map[val] ?? 0) * weight;
+    score += got;
+    if (got < weight) flagged += 1;
+  }
+  const passed = maxScore > 0 ? score / maxScore >= 0.8 : null;
+
+  const updated = await prisma.checklistInstance.update({
+    where: { id: instance.id },
+    data: { status: 'SUBMITTED', submittedAt: new Date(), routedToGroupId: routedGroupId, score, maxScore, passed, flaggedCount: flagged },
+  });
 
   // create notification for routed group's members
   if (routedGroupId) {

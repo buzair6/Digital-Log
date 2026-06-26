@@ -201,8 +201,9 @@ export default function FillChecklistPage() {
             )}
             {node.inputType === 'file_upload' && (
               <div>
-                <input className="w-full px-3 py-2 border rounded-lg" type="file"
+                      <input className="w-full px-3 py-2 border rounded-lg" type="file"
                   accept="image/*,application/pdf"
+                  capture="environment"
                   disabled={instance?.status === 'SUBMITTED' || instance?.status === 'APPROVED'}
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(node.id, f); }} />
                 {(uploads[node.id]?.url || value) && (

@@ -18,7 +18,7 @@ function ScanContent() {
     setError(null);
 
     if (typeof window !== 'undefined' && !window.isSecureContext) {
-      setError('Camera requires HTTPS or localhost. Use the manual entry below.');
+      setError('Camera requires HTTPS or localhost. Use manual entry below.');
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -38,7 +38,7 @@ function ScanContent() {
         detectorRef.current = new BD({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'upc_a'] });
         tick();
       } else {
-        setError('Barcode detection not supported in this browser (use Chrome/Edge). Enter the tag manually below.');
+        setError('Live barcode detection not supported in this browser. On iOS/Safari/Firefox use the manual entry below.');
         setScanning(false);
       }
     } catch (e: any) {
