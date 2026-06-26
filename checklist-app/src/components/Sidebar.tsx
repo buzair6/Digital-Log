@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { ClipboardList, LayoutDashboard, FileText, Users, Group, ScrollText, LogOut } from 'lucide-react';
+import { ClipboardList, LayoutDashboard, FileText, Users, Group, ScrollText, LogOut, CalendarClock, Boxes, FileSpreadsheet, ScanLine } from 'lucide-react';
 
 type Me = { id: string; email: string; fullName?: string | null; role: string };
 
@@ -19,16 +19,21 @@ export default function Sidebar() {
 
   const isAdmin = (me?.role || '').toUpperCase() === 'ADMIN';
 
-  const adminLinks = [
-    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/admin/templates', label: 'Templates', icon: FileText },
-    { href: '/admin/users', label: 'Users', icon: Users },
-    { href: '/admin/groups', label: 'Groups', icon: Group },
-    { href: '/admin/audit', label: 'Audit Log', icon: ScrollText },
-  ];
-  const userLinks = [
-    { href: '/dashboard', label: 'My Checklists', icon: ClipboardList },
-  ];
+const adminLinks = [
+  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/instances', label: 'Instances', icon: ClipboardList },
+  { href: '/admin/templates', label: 'Templates', icon: FileText },
+  { href: '/admin/schedules', label: 'Schedules', icon: CalendarClock },
+  { href: '/admin/assets', label: 'Assets', icon: Boxes },
+  { href: '/admin/users', label: 'Users', icon: Users },
+  { href: '/admin/groups', label: 'Groups', icon: Group },
+  { href: '/admin/reports', label: 'Reports', icon: FileSpreadsheet },
+  { href: '/admin/audit', label: 'Audit Log', icon: ScrollText },
+];
+const userLinks = [
+  { href: '/dashboard', label: 'My Checklists', icon: ClipboardList },
+  { href: '/instances/scan', label: 'Scan Asset', icon: ScanLine },
+];
 
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });

@@ -35,6 +35,7 @@ model User {
   todos             Todo[]
   addedGroupMembers GroupMember[] @relation("GroupMemberAddedBy")
   initiatedRoutes   ChecklistRoute[] @relation("RouteInitiatedBy")
+  schedules         Schedule[] @relation("ScheduleCreatedBy")
 }
 
 model Group {
@@ -74,6 +75,7 @@ model ChecklistTemplate {
 
   nodes                  ChecklistNode[]
   instances              ChecklistInstance[]
+  schedules              Schedule[] @relation("ScheduleTemplate")
 }
 
 model ChecklistNode {
@@ -91,6 +93,12 @@ model ChecklistNode {
   isRequired   Boolean      @default(false)
   helpText     String?
   depthLevel   Int?         
+
+  // Exception detection for number-type questions
+  minValue          String?
+  maxValue          String?
+  exceptionAction   String?
+
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -116,6 +124,9 @@ model ChecklistInstance {
   reviewComments       String?
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
+
+  assetId              String?
+  asset                Asset?  @relation("InstanceAsset", fields: [assetId], references: [id])
 
   responses            ChecklistResponse[]
   comments             ChecklistComment[]
@@ -211,5 +222,33 @@ model Todo {
   updatedAt DateTime @updatedAt
 }
 
-// End of schema
+// === NEW: Recurring schedules ===
+model Schedule {
+  id               String   @id @default(cuid())
+  name             String
+  templateId       String
+  template         ChecklistTemplate @relation("ScheduleTemplate", fields: [templateId], references: [id])
+  cronExpr         String?
+  intervalMinutes  Int?
+  lastRunAt        DateTime?
+  nextRunAt        DateTime
+  assignedToUserId String?
+  routedToGroupId  String?
+  isActive         Boolean  @default(true)
+  createdById      String
+  createdBy        User     @relation("ScheduleCreatedBy", fields: [createdById], references: [id])
+  createdAt        DateTime @default(now())
+}
 
+// === NEW: Asset registry ===
+model Asset {
+  id        String   @id @default(cuid())
+  tag       String   @unique
+  name      String
+  location  String?
+  notes     String?
+  createdAt DateTime @default(now())
+  instances ChecklistInstance[] @relation("InstanceAsset")
+}
+
+// End of schema

@@ -40,9 +40,18 @@ export default function TemplateBuilder({ templateId }: { templateId: string }) 
   }
 
   async function editNode(node: Node) {
-    // open detail editor
     setSelected(node);
-    setEditing({ title: node.title, nodeType: node.nodeType, inputType: (node as any).inputType ?? '', options: (node as any).options ?? '', isRequired: !!(node as any).isRequired, helpText: (node as any).helpText ?? '' });
+    setEditing({
+      title: node.title,
+      nodeType: node.nodeType,
+      inputType: (node as any).inputType ?? '',
+      options: (node as any).options ?? '',
+      isRequired: !!(node as any).isRequired,
+      helpText: (node as any).helpText ?? '',
+      minValue: (node as any).minValue ?? '',
+      maxValue: (node as any).maxValue ?? '',
+      exceptionAction: (node as any).exceptionAction ?? '',
+    });
   }
 
   function flatten(list: Node[]) {
@@ -68,7 +77,6 @@ export default function TemplateBuilder({ templateId }: { templateId: string }) 
     e.preventDefault();
     const draggedId = e.dataTransfer.getData('text/plain');
     if (!draggedId || draggedId === targetNode.id) return;
-    // Make dragged node a child of targetNode
     const updates = [{ id: draggedId, parentNodeId: targetNode.id, orderIndex: 0 }];
     await reorderUpdates(updates);
   }
@@ -167,8 +175,17 @@ export default function TemplateBuilder({ templateId }: { templateId: string }) 
             {!selected && <div className="text-sm text-gray-500">Select a node to edit its details.</div>}
             {selected && (
               <form onSubmit={async (e) => { e.preventDefault();
-                // save
-                const payload = { title: editing.title, nodeType: editing.nodeType, inputType: editing.inputType || null, options: editing.options || null, isRequired: !!editing.isRequired, helpText: editing.helpText || null };
+                const payload = {
+                  title: editing.title,
+                  nodeType: editing.nodeType,
+                  inputType: editing.inputType || null,
+                  options: editing.options || null,
+                  isRequired: !!editing.isRequired,
+                  helpText: editing.helpText || null,
+                  minValue: editing.minValue || null,
+                  maxValue: editing.maxValue || null,
+                  exceptionAction: editing.exceptionAction || null,
+                };
                 await fetch(`/api/templates/${templateId}/nodes/${selected.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), credentials: 'include' });
                 setSelected(null); setEditing({}); load();
               }}>
@@ -211,6 +228,25 @@ export default function TemplateBuilder({ templateId }: { templateId: string }) 
                       <label className="block text-sm">Help Text</label>
                       <input className="w-full p-2 border" value={editing.helpText || ''} onChange={(e) => setEditing({ ...editing, helpText: e.target.value })} />
                     </div>
+                    {editing.inputType === 'number' && (
+                      <div className="mb-2 p-3 bg-amber-50 border border-amber-200 rounded">
+                        <div className="text-xs font-medium text-amber-800 mb-2">Exception Detection (optional)</div>
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Min acceptable value</label>
+                            <input className="w-full p-2 border rounded text-sm" type="number" value={editing.minValue || ''} onChange={(e) => setEditing({ ...editing, minValue: e.target.value })} placeholder="e.g. 10" />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Max acceptable value</label>
+                            <input className="w-full p-2 border rounded text-sm" type="number" value={editing.maxValue || ''} onChange={(e) => setEditing({ ...editing, maxValue: e.target.value })} placeholder="e.g. 100" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Corrective action shown when out of range</label>
+                          <input className="w-full p-2 border rounded text-sm" value={editing.exceptionAction || ''} onChange={(e) => setEditing({ ...editing, exceptionAction: e.target.value })} placeholder="e.g. Notify maintenance and shut down pump" />
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
                 <div className="flex gap-2 mt-2">

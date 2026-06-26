@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ClipboardList, Loader2, LogOut, CheckCircle2, ArrowRight } from 'lucide-react';
+import { ClipboardList, Loader2, LogOut, CheckCircle2, ArrowRight, Plus } from 'lucide-react';
 
 type Instance = {
   id: string;
@@ -60,9 +60,14 @@ export default function Dashboard() {
             <ClipboardList className="w-6 h-6 text-indigo-600" />
             <span className="font-semibold text-gray-900">My Checklists</span>
           </div>
-          <button onClick={logout} className="text-sm text-gray-600 hover:text-red-600 flex items-center gap-1">
-            <LogOut className="w-4 h-4" /> Logout
-          </button>
+          <div className="flex items-center gap-3">
+            <a href="/instances/new" className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg flex items-center gap-1.5 hover:bg-indigo-700">
+              <Plus className="w-4 h-4" /> New Checklist
+            </a>
+            <button onClick={logout} className="text-sm text-gray-600 hover:text-red-600 flex items-center gap-1">
+              <LogOut className="w-4 h-4" /> Logout
+            </button>
+          </div>
         </div>
       </header>
 

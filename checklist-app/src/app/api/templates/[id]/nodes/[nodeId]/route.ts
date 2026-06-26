@@ -18,8 +18,8 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string;
   const { nodeId } = await context.params;
 
   const body = await req.json();
-  const { parentNodeId, orderIndex, title, nodeType, inputType, options, isRequired, helpText } = body;
-  const data: any = { parentNodeId: parentNodeId ?? null, orderIndex, title, nodeType, inputType: inputType ?? null, options: options ?? null, isRequired: isRequired ?? false, helpText: helpText ?? null };
+  const { parentNodeId, orderIndex, title, nodeType, inputType, options, isRequired, helpText, minValue, maxValue, exceptionAction } = body;
+  const data: any = { parentNodeId: parentNodeId ?? null, orderIndex, title, nodeType, inputType: inputType ?? null, options: options ?? null, isRequired: isRequired ?? false, helpText: helpText ?? null, minValue: minValue ?? null, maxValue: maxValue ?? null, exceptionAction: exceptionAction ?? null };
 
   // compute depth if parent changed
   if (parentNodeId) {
