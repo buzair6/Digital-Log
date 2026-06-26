@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Sidebar from '@/components/Sidebar';
 import { Loader2, Save, Send, CheckCircle2 } from 'lucide-react';
 
 function isException(node: any, value: string): boolean {
@@ -29,6 +28,7 @@ export default function FillChecklistPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [uploads, setUploads] = useState<Record<string, { url: string; fileName: string }>>({});
 
   function flash(m: string) { setToast(m); setTimeout(() => setToast(null), 1800); }
 
@@ -46,7 +46,6 @@ export default function FillChecklistPage() {
       const allNodes = d2.nodes || d2.template?.nodes || [];
       setNodes(allNodes);
 
-      // BUG FIX: key responses by node.id, not node.nodeId
       const init: Record<string, string> = {};
       (d1.instance.responses || []).forEach((r: any) => { init[r.nodeId] = r.value || ''; });
       setResponses(init);
@@ -59,7 +58,21 @@ export default function FillChecklistPage() {
 
   useEffect(() => { if (id) load(); }, [id]);
 
-  // BUG FIX: send { responses: [...] } because that's what the API reads
+  async function uploadFile(nodeId: string, file: File) {
+    flash('Uploading…');
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/uploads', { method: 'POST', body: fd, credentials: 'include' });
+    const d = await res.json();
+    if (res.ok) {
+      setUploads((p) => ({ ...p, [nodeId]: { url: d.url, fileName: d.fileName } }));
+      setResponses((prev) => ({ ...prev, [nodeId]: d.url }));
+      flash('File attached');
+    } else {
+      flash(d.error || 'Upload failed');
+    }
+  }
+
   async function saveDraft() {
     setSaving(true);
     const payload = Object.entries(responses).map(([nodeId, value]) => ({ nodeId, value: value ?? '' }));
@@ -71,7 +84,6 @@ export default function FillChecklistPage() {
       body: JSON.stringify({ responses: payload }),
     });
 
-    // Exception detection
     const exceptions = nodes
       .filter((n) => n.nodeType === 'QUESTION' && isException(n, responses[n.id] ?? ''))
       .map((n) => ({ nodeId: n.id, title: n.title, value: responses[n.id] ?? '' }));
@@ -102,7 +114,6 @@ export default function FillChecklistPage() {
     const verr = validateRequired();
     if (verr) { flash(verr); return; }
     setSubmitting(true);
-    // save first, then submit
     const payload = Object.entries(responses).map(([nodeId, value]) => ({ nodeId, value: value ?? '', isComplete: true }));
     await fetch(`/api/instances/${id}/responses`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -189,8 +200,18 @@ export default function FillChecklistPage() {
                 disabled={instance?.status === 'SUBMITTED' || instance?.status === 'APPROVED'} />
             )}
             {node.inputType === 'file_upload' && (
-              <input className="w-full px-3 py-2 border rounded-lg" type="file"
-                disabled={instance?.status === 'SUBMITTED' || instance?.status === 'APPROVED'} />
+              <div>
+                <input className="w-full px-3 py-2 border rounded-lg" type="file"
+                  accept="image/*,application/pdf"
+                  disabled={instance?.status === 'SUBMITTED' || instance?.status === 'APPROVED'}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(node.id, f); }} />
+                {(uploads[node.id]?.url || value) && (
+                  <a href={uploads[node.id]?.url || value} target="_blank" rel="noreferrer"
+                    className="inline-block mt-2 text-xs text-indigo-600 underline">
+                    View attachment
+                  </a>
+                )}
+              </div>
             )}
             {node.inputType === 'signature' && (
               <input className="w-full px-3 py-2 border rounded-lg" placeholder="Type name as signature"
@@ -206,76 +227,67 @@ export default function FillChecklistPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-slate-50">
-        <Sidebar />
-        <div className="flex-1 flex items-center justify-center text-gray-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
+      <div className="flex-1 flex items-center justify-center text-gray-400 min-h-screen">
+        <Loader2 className="w-6 h-6 animate-spin" />
       </div>
     );
   }
   if (error || !instance) {
-    return (
-      <div className="flex min-h-screen bg-slate-50">
-        <Sidebar />
-        <div className="flex-1 p-8">{error || 'Instance not found'}</div>
-      </div>
-    );
+    return <div className="p-8">{error || 'Instance not found'}</div>;
   }
 
   const rootNodes = nodes.filter((n: any) => !n.parentNodeId).sort((a: any, b: any) => (a.orderIndex || 0) - (b.orderIndex || 0));
   const readonly = instance.status === 'SUBMITTED' || instance.status === 'APPROVED' || instance.status === 'REJECTED';
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
-      <main className="flex-1 p-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-2xl font-semibold text-gray-900">{template?.name || 'Checklist'}</h1>
-            <span className={`px-2 py-1 rounded text-xs ${instance.status === 'APPROVED' ? 'bg-green-100 text-green-700' : instance.status === 'SUBMITTED' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
-              {instance.status}
-            </span>
+    <main className="flex-1 p-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-2xl font-semibold text-gray-900">{template?.name || 'Checklist'}</h1>
+          <span className={`px-2 py-1 rounded text-xs ${instance.status === 'APPROVED' ? 'bg-green-100 text-green-700' : instance.status === 'SUBMITTED' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+            {instance.status}
+          </span>
+        </div>
+        {instance.reviewComments && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 px-3 py-2 rounded-lg text-sm mb-4">
+            Reviewer feedback: {instance.reviewComments}
           </div>
-          {instance.reviewComments && (
-            <div className="bg-amber-50 border border-amber-200 text-amber-800 px-3 py-2 rounded-lg text-sm mb-4">
-              Reviewer feedback: {instance.reviewComments}
-            </div>
-          )}
+        )}
 
-          {toast && <div className="fixed bottom-6 right-6 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-50">{toast}</div>}
+        {toast && <div className="fixed bottom-6 right-6 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-50">{toast}</div>}
 
-          <div className="grid grid-cols-3 gap-6">
-            <div className="col-span-2 space-y-4">
-              {rootNodes.length === 0 ? (
-                <div className="bg-white border rounded-xl p-8 text-center text-gray-400">
-                  This template has no questions yet. An admin needs to add questions in the Template Builder.
-                </div>
-              ) : (
-                rootNodes.map((n: any) => renderNode(n))
-              )}
-            </div>
+        <div className="grid grid-cols-3 gap-6">
+          <div className="col-span-2 space-y-4">
+            {rootNodes.length === 0 ? (
+              <div className="bg-white border rounded-xl p-8 text-center text-gray-400">
+                This template has no questions yet. An admin needs to add questions in the Template Builder.
+              </div>
+            ) : (
+              rootNodes.map((n: any) => renderNode(n))
+            )}
+          </div>
 
-            <div className="border rounded-xl p-4 h-fit sticky top-4 bg-white">
-              <div className="font-medium text-gray-900 mb-3">Actions</div>
-              {!readonly ? (
-                <div className="space-y-2">
-                  <button onClick={saveDraft} disabled={saving}
-                    className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg flex items-center justify-center gap-1.5 hover:bg-blue-700 disabled:bg-blue-400">
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Save Draft</>}
-                  </button>
-                  <button onClick={submit} disabled={submitting}
-                    className="w-full px-3 py-2 bg-green-600 text-white rounded-lg flex items-center justify-center gap-1.5 hover:bg-green-700 disabled:bg-green-400">
-                    {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Submit for Review</>}
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" /> This checklist is {instance.status.toLowerCase()} and read-only.
-                </div>
-              )}
-            </div>
+          <div className="border rounded-xl p-4 h-fit sticky top-4 bg-white">
+            <div className="font-medium text-gray-900 mb-3">Actions</div>
+            {!readonly ? (
+              <div className="space-y-2">
+                <button onClick={saveDraft} disabled={saving}
+                  className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg flex items-center justify-center gap-1.5 hover:bg-blue-700 disabled:bg-blue-400">
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Save Draft</>}
+                </button>
+                <button onClick={submit} disabled={submitting}
+                  className="w-full px-3 py-2 bg-green-600 text-white rounded-lg flex items-center justify-center gap-1.5 hover:bg-green-700 disabled:bg-green-400">
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Submit for Review</>}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <CheckCircle2 className="w-4 h-4 text-green-500" /> This checklist is {instance.status.toLowerCase()} and read-only.
+              </div>
+            )}
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }

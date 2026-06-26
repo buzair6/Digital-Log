@@ -11,30 +11,41 @@ function ScanContent() {
   const [tag, setTag] = useState(presetTag);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [manual, setManual] = useState(!presetTag);
   const detectorRef = useRef<any>(null);
   const rafRef = useRef<number | null>(null);
 
   async function startCamera() {
     setError(null);
+
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      setError('Camera requires HTTPS or localhost. Use the manual entry below.');
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError('Camera not available in this browser. Use manual entry below.');
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setScanning(true);
-        const BD = (window as any).BarcodeDetector;
-        if (BD) {
-          detectorRef.current = new BD({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'upc_a'] });
-          tick();
-        } else {
-          setError('Live barcode detection not supported in this browser. Enter the tag manually below.');
-          setManual(true);
-        }
+      if (!videoRef.current) return;
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+      setScanning(true);
+
+      const BD = (window as any).BarcodeDetector;
+      if (BD) {
+        detectorRef.current = new BD({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'upc_a'] });
+        tick();
+      } else {
+        setError('Barcode detection not supported in this browser (use Chrome/Edge). Enter the tag manually below.');
+        setScanning(false);
       }
-    } catch (e) {
-      setError('Camera access denied. Enter the tag manually below.');
-      setManual(true);
+    } catch (e: any) {
+      if (e?.name === 'NotAllowedError') setError('Camera permission denied. Allow access or use manual entry below.');
+      else if (e?.name === 'NotFoundError') setError('No camera detected. Use manual entry below.');
+      else setError('Could not start camera. Use manual entry below.');
+      setScanning(false);
     }
   }
 
@@ -54,8 +65,10 @@ function ScanContent() {
 
   function stopCamera() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    detectorRef.current = null;
     const s = videoRef.current?.srcObject as MediaStream | null;
     s?.getTracks().forEach((t) => t.stop());
+    if (videoRef.current) videoRef.current.srcObject = null;
     setScanning(false);
   }
 
@@ -65,7 +78,7 @@ function ScanContent() {
     const res = await fetch('/api/assets', { credentials: 'include' });
     const d = await res.json();
     const asset = (d.assets || []).find((a: any) => a.tag === tagValue);
-    if (!asset) { setError(`No asset with tag "${tagValue}". Register it first.`); setManual(true); return; }
+    if (!asset) { setError(`No asset with tag "${tagValue}". Register it first.`); return; }
     sessionStorage.setItem('pendingAssetId', asset.id);
     router.push(`/instances/new?assetId=${asset.id}`);
   }

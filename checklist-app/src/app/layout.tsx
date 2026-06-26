@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Sidebar from "../components/Sidebar";
-import TopBar from "../components/TopBar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,12 +36,8 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#4f46e5" />
       </head>
-      <body className="min-h-full flex flex-col">
-        <TopBar />
-        <div className="flex flex-1">
-          <Sidebar />
-          <main className="flex-1">{children}</main>
-        </div>
+      <body className="min-h-full">
+        {children}
         <script
           dangerouslySetInnerHTML={{
             __html: `if ('serviceWorker' in navigator) {

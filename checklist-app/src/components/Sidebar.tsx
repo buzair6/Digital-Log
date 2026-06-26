@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { ClipboardList, LayoutDashboard, FileText, Users, Group, ScrollText, LogOut, CalendarClock, Boxes, FileSpreadsheet, ScanLine } from 'lucide-react';
+import { ClipboardList, LayoutDashboard, FileText, Users, Group, ScrollText, LogOut, CalendarClock, Boxes, FileSpreadsheet, ScanLine, AlertTriangle } from 'lucide-react';
 
 type Me = { id: string; email: string; fullName?: string | null; role: string };
 
@@ -33,6 +33,7 @@ const adminLinks = [
 const userLinks = [
   { href: '/dashboard', label: 'My Checklists', icon: ClipboardList },
   { href: '/instances/scan', label: 'Scan Asset', icon: ScanLine },
+  { href: '/actions', label: 'Actions', icon: AlertTriangle },
 ];
 
   async function logout() {

@@ -6,7 +6,14 @@ export async function GET(req: Request) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
 
-  const templates = await prisma.checklistTemplate.findMany({ select: { id: true, name: true, description: true, version: true, isActive: true, createdAt: true } });
+  const url = new URL(req.url);
+  const includeInactive = url.searchParams.get('all') === '1' && user.role === 'ADMIN';
+
+  const templates = await prisma.checklistTemplate.findMany({
+    where: includeInactive ? {} : { isActive: true },
+    select: { id: true, name: true, description: true, version: true, isActive: true, createdAt: true },
+    orderBy: { createdAt: 'desc' },
+  });
   return NextResponse.json({ templates });
 }
 
@@ -19,6 +26,8 @@ export async function POST(req: Request) {
   const { name, description, defaultRoutingGroupId, isActive } = body;
   if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 });
 
-  const template = await prisma.checklistTemplate.create({ data: { name, description, createdById: user.id, defaultRoutingGroupId: defaultRoutingGroupId || null, isActive: isActive ?? true } });
+  const template = await prisma.checklistTemplate.create({
+    data: { name, description, createdById: user.id, defaultRoutingGroupId: defaultRoutingGroupId || null, isActive: isActive ?? true },
+  });
   return NextResponse.json({ template }, { status: 201 });
 }

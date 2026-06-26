@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from 'react';
-import Sidebar from '@/components/Sidebar';
 import { Plus, Trash2, FileText, Loader2, ArrowRight } from 'lucide-react';
 
 type Template = {
@@ -43,9 +42,7 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
-      <main className="flex-1 p-8 max-w-4xl">
+    <main className="flex-1 p-8 max-w-4xl">
         <h1 className="text-2xl font-semibold text-gray-900 mb-6">Checklist Templates</h1>
 
         <form onSubmit={createTemplate} className="bg-white border rounded-xl p-4 mb-6 flex gap-3 items-end">
@@ -93,6 +90,5 @@ export default function TemplatesPage() {
           </div>
         )}
       </main>
-    </div>
   );
 }
