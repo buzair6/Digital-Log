@@ -2,6 +2,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ScanLine, Camera } from 'lucide-react';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 
 function ScanContent() {
   const router = useRouter();
@@ -13,6 +14,7 @@ function ScanContent() {
   const [error, setError] = useState<string | null>(null);
   const detectorRef = useRef<any>(null);
   const rafRef = useRef<number | null>(null);
+  const zxingRef = useRef<BrowserMultiFormatReader | null>(null);
 
   async function startCamera() {
     setError(null);
@@ -38,8 +40,21 @@ function ScanContent() {
         detectorRef.current = new BD({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'upc_a'] });
         tick();
       } else {
-        setError('Live barcode detection not supported in this browser. On iOS/Safari/Firefox use the manual entry below.');
-        setScanning(false);
+        // ZXing fallback for Safari/Firefox/iOS
+        try {
+          zxingRef.current = new BrowserMultiFormatReader();
+          zxingRef.current.decodeFromVideoElement(videoRef.current, (result) => {
+            if (result) {
+              const value = result.getText();
+              setTag(value);
+              stopCamera();
+              lookupAndStart(value);
+            }
+          });
+        } catch (zxErr) {
+          setError('No barcode library available. Enter the tag manually below.');
+          setScanning(false);
+        }
       }
     } catch (e: any) {
       if (e?.name === 'NotAllowedError') setError('Camera permission denied. Allow access or use manual entry below.');
@@ -66,6 +81,7 @@ function ScanContent() {
   function stopCamera() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     detectorRef.current = null;
+    zxingRef.current = null;
     const s = videoRef.current?.srcObject as MediaStream | null;
     s?.getTracks().forEach((t) => t.stop());
     if (videoRef.current) videoRef.current.srcObject = null;
