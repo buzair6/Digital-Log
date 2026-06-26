@@ -5,18 +5,24 @@ const SECRET = process.env.SESSION_SECRET || 'dev-insecure-session-secret-change
 
 /**
  * Token format: base64url(payloadJson).base64url(hmac)
- * payload = { uid, iat, exp }
+ * payload = { uid, role, iat, exp }
  */
-export function signSessionToken(userId: string, ttlSeconds = 7 * 24 * 3600): string {
+export function signSessionToken(
+  userId: string,
+  role: string,
+  ttlSeconds = 7 * 24 * 3600,
+): string {
   const iat = Math.floor(Date.now() / 1000);
   const exp = iat + ttlSeconds;
-  const payload = JSON.stringify({ uid: userId, iat, exp });
+  const payload = JSON.stringify({ uid: userId, role, iat, exp });
   const payloadB64 = Buffer.from(payload, 'utf-8').toString('base64url');
   const sig = crypto.createHmac('sha256', SECRET).update(payloadB64).digest('base64url');
   return `${payloadB64}.${sig}`;
 }
 
-export function verifySessionToken(token: string): { uid: string; exp: number } | null {
+export function verifySessionToken(
+  token: string,
+): { uid: string; role: string; exp: number } | null {
   try {
     const [payloadB64, sig] = token.split('.');
     if (!payloadB64 || !sig) return null;
@@ -25,7 +31,7 @@ export function verifySessionToken(token: string): { uid: string; exp: number } 
     if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) return null;
     const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf-8'));
     if (typeof payload.exp !== 'number' || payload.exp < Math.floor(Date.now() / 1000)) return null;
-    return { uid: payload.uid, exp: payload.exp };
+    return { uid: payload.uid, role: payload.role, exp: payload.exp };
   } catch {
     return null;
   }

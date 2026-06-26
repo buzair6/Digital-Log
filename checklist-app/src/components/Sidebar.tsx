@@ -1,23 +1,13 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { ClipboardList, LayoutDashboard, FileText, Users, Group, ScrollText, LogOut, CalendarClock, Boxes, FileSpreadsheet, ScanLine, AlertTriangle } from 'lucide-react';
+import {
+  ClipboardList, LayoutDashboard, FileText, Users, Group,
+  ScrollText, LogOut, CalendarClock, Boxes, FileSpreadsheet,
+  ScanLine, AlertTriangle,
+} from 'lucide-react';
 
 type Me = { id: string; email: string; fullName?: string | null; role: string };
-
-export default function Sidebar() {
-  const [me, setMe] = useState<Me | null>(null);
-  const pathname = usePathname();
-  const router = useRouter();
-
-  useEffect(() => {
-    fetch('/api/auth/me', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => setMe(d?.user ?? null))
-      .catch(() => setMe(null));
-  }, []);
-
-  const isAdmin = (me?.role || '').toUpperCase() === 'ADMIN';
 
 const adminLinks = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -30,11 +20,43 @@ const adminLinks = [
   { href: '/admin/reports', label: 'Reports', icon: FileSpreadsheet },
   { href: '/admin/audit', label: 'Audit Log', icon: ScrollText },
 ];
+
 const userLinks = [
   { href: '/dashboard', label: 'My Checklists', icon: ClipboardList },
   { href: '/instances/scan', label: 'Scan Asset', icon: ScanLine },
   { href: '/actions', label: 'Actions', icon: AlertTriangle },
 ];
+
+export default function Sidebar() {
+  const [me, setMe] = useState<Me | null>(null);
+  const [loading, setLoading] = useState(true);
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    let mounted = true;
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (mounted) {
+          setMe(d?.user ?? null);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setMe(null);
+          setLoading(false);
+        }
+      });
+    return () => { mounted = false; };
+  }, []);
+
+  // Show admin links if the user is an admin OR if we're currently on an admin page
+  // (this prevents the admin sidebar from disappearing if the /api/auth/me call is slow/fails)
+  const isAdmin = (me?.role || '').toUpperCase() === 'ADMIN';
+  const onAdminPage = pathname?.startsWith('/admin');
+  const showAdminSection = isAdmin || (onAdminPage && !loading && !me);
 
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
@@ -58,9 +80,12 @@ const userLinks = [
         {userLinks.map((l) => (
           <NavLink key={l.href} {...l} active={isActive(l.href)} />
         ))}
-        {isAdmin && (
+
+        {showAdminSection && (
           <>
-            <div className="px-3 pt-4 pb-1 text-xs uppercase tracking-wider text-slate-500">Management</div>
+            <div className="px-3 pt-4 pb-1 text-xs uppercase tracking-wider text-slate-500">
+              Management
+            </div>
             {adminLinks.map((l) => (
               <NavLink key={l.href} {...l} active={isActive(l.href)} />
             ))}
@@ -70,10 +95,15 @@ const userLinks = [
 
       <div className="px-3 py-4 border-t border-slate-800">
         <div className="px-2 pb-3">
-          <div className="text-sm text-white truncate">{me?.fullName || me?.email || '—'}</div>
-          <div className="text-xs text-slate-500">{me?.role}</div>
+          <div className="text-sm text-white truncate">
+            {me?.fullName || me?.email || (loading ? '…' : '—')}
+          </div>
+          <div className="text-xs text-slate-500">{me?.role || ''}</div>
         </div>
-        <button onClick={logout} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white">
+        <button
+          onClick={logout}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
+        >
           <LogOut className="w-4 h-4" /> Logout
         </button>
       </div>

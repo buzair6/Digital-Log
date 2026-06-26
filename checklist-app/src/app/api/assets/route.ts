@@ -5,6 +5,15 @@ import { getUserFromRequest } from '@/lib/session';
 export async function GET(req: Request) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
+
+  const url = new URL(req.url);
+  const tag = url.searchParams.get('tag');
+  if (tag) {
+    const asset = await prisma.asset.findUnique({ where: { tag } });
+    if (!asset) return NextResponse.json({ error: 'not found' }, { status: 404 });
+    return NextResponse.json({ asset });
+  }
+
   const assets = await prisma.asset.findMany({ orderBy: { createdAt: 'desc' } });
   return NextResponse.json({ assets });
 }

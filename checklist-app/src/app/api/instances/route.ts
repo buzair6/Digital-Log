@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
 
   const body = await req.json();
-  const { templateId, assignedToUserId, routedToGroupId } = body;
+  const { templateId, assignedToUserId, routedToGroupId, assetId } = body;
   if (!templateId) return NextResponse.json({ error: 'templateId required' }, { status: 400 });
 
   const inst = await prisma.checklistInstance.create({
@@ -48,6 +48,7 @@ export async function POST(req: Request) {
       templateId,
       assignedToUserId: assignedToUserId ?? null,
       routedToGroupId: routedToGroupId ?? null,
+      assetId: assetId ?? null,
       createdById: user.id,
       startedAt: new Date(),
       status: 'IN_PROGRESS',
