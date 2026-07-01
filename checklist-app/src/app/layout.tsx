@@ -42,7 +42,15 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `if ('serviceWorker' in navigator) {
               window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch(() => {});
+                // In development, unregister any stale SW first to avoid
+                // serving cached HTML that references non-existent chunks.
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                  navigator.serviceWorker.getRegistrations().then(function(regs) {
+                    for (var r of regs) r.unregister();
+                  });
+                } else {
+                  navigator.serviceWorker.register('/sw.js').catch(function() {});
+                }
               });
             }`,
           }}
